@@ -12,18 +12,42 @@
 
 // Praepozessor-Makros
 #define SAMPLERATE 44000
+#define FENSTERBREITE 440
 
 //Funktionen-Deklarationen
 void adcIntHandler(void);
 void setup(void);
 // hier nach Bedarf noch weitere Funktionsdeklarationen einfuegen
+void discreteFourierTransfomation(void) {
+
+    uint32_t real[FENSTERBREITE];
+    uint32_t imaginary[FENSTERBREITE];
+
+    for (k = 0 ; k < FENSTERBREITE ; k++)
+    {
+        for (n = 0 ; n < FENSTERBREITE ; n++) {
+            real[k] += bufferSample[n] * cosf(n * k * DoublePi / FENSTERBREITE);
+        }
+
+        for (n = 0 ; n < FENSTERBREITE ; n++) {
+            imaginary[k] += bufferSample[n] * sinf(n * k * DoublePi / FENSTERBREITE);
+        }
+
+        freqBereich[k * frequenzaufloesung] += sqrt(real[k]^2 + imaginary[k]^2);
+    }
+}
+
+
 
 // globale Variablen
 const float DoublePi = 6.283185308;
-int32_t bufferSample[440];
+int32_t bufferSample[FENSTERBREITE];
+uint32_t sampleIndex = 0;
+uint32_t frequenzaufloesung = SAMPLERATE / FENSTERBREITE;
+float freqBereich[44000];
 // hier nach Bedarf noch weitere globale Variablen einfuegen
 
-void main(void){ // nicht veraendern!! Bitte Code in adcIntHandler einfuegen 
+void main(void){ // nicht veraendern!! Bitte Code in adcIntHandler einfuegen
     setup();
     while(1){}
 }
@@ -68,9 +92,17 @@ void setup(void){//konfiguriert den Mikrocontroller
 }
 
 void adcIntHandler(void){
-   // Bitte Code hier einfuegen
-   // ...
-   
-   // am Ende von adcIntHandler, Interrupt-Flag loeschen
-   ADCIntClear(ADC0_BASE,3);
+
+    ADCSequenceDataGet(ADC0_BASE,3,&bufferSample[i]);
+
+    i++;
+
+    if (sampleIndex == 339) {
+        i = 0;
+    }
+
+    discreteFourierTransfomation();
+
+    // am Ende von adcIntHandler, Interrupt-Flag loeschen
+    ADCIntClear(ADC0_BASE,3);
 }
